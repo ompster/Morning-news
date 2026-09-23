@@ -1,0 +1,276 @@
+<!doctype html>
+<html lang="en-AU">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0F1722">
+<title>Morning news</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%232340F0'/%3E%3Cpath d='M38 28v44l36-22z' fill='white'/%3E%3C/svg%3E">
+<style>
+:root{
+  --bg:#E8EDF1; --ink:#0E1B2B; --mute:#57677A; --line:#C5D0DA;
+  --accent:#2340F0; --tint:#D3DAFB; --err:#9A3B2E;
+}
+@media (prefers-color-scheme:dark){
+  :root{--bg:#0F1722; --ink:#E6ECF2; --mute:#8C9BAC; --line:#25313F; --accent:#8FA0FF; --tint:#1B2650; --err:#E0897A;}
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);
+  font:16px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-tap-highlight-color:transparent}
+main{max-width:640px;margin:0 auto;padding:calc(env(safe-area-inset-top,0px) + 24px) 20px calc(150px + env(safe-area-inset-bottom,0px))}
+header{display:flex;justify-content:space-between;align-items:flex-end;gap:12px}
+h1{margin:0;font:700 40px/1.05 Georgia,"Times New Roman",serif;letter-spacing:-.02em}
+.date{margin:6px 0 0;color:var(--mute)}
+.linkbtn{background:none;border:0;color:var(--mute);font:inherit;font-size:14px;padding:8px 0 8px 8px;text-decoration:underline;text-underline-offset:3px;cursor:pointer}
+.play{display:flex;align-items:center;justify-content:space-between;width:100%;margin:22px 0 10px;padding:18px 20px;
+  border:0;border-radius:14px;background:var(--ink);color:var(--bg);font:600 19px system-ui,sans-serif;cursor:pointer}
+.play span:last-child{font-weight:500;font-size:14px;opacity:.75}
+.play:disabled{opacity:.45}
+.play svg{width:22px;height:22px;margin-right:12px;vertical-align:-4px;fill:currentColor}
+ul{list-style:none;margin:0 -20px;padding:0}
+.row{position:relative;display:grid;grid-template-columns:auto 1fr auto;gap:14px;align-items:start;
+  padding:16px 20px;border-bottom:1px solid var(--line);overflow:hidden}
+.row>*{position:relative;z-index:1}
+.row::before{content:"";position:absolute;z-index:0;inset:0;width:0;background:var(--tint)}
+.row.now::before{width:var(--p,0%)}
+.row.now{box-shadow:inset 3px 0 0 var(--accent)}
+.row input{width:22px;height:22px;margin:2px 0 0;accent-color:var(--accent)}
+.pick{all:unset;display:block;cursor:pointer;min-width:0}
+.pick:focus-visible{outline:2px solid var(--accent);outline-offset:4px;border-radius:4px}
+.src{display:block;font:600 13px system-ui,sans-serif;color:var(--mute)}
+.now .src{color:var(--accent)}
+.hl{display:block;margin-top:2px;font:600 18px/1.3 Georgia,"Times New Roman",serif}
+.hl.msg{font:500 15px system-ui,sans-serif;color:var(--mute)}
+.hl.err{color:var(--err)}
+.age{font-size:13px;color:var(--mute);white-space:nowrap;font-variant-numeric:tabular-nums;padding-top:2px}
+.age.stale{color:var(--err)}
+.off .hl,.off .src{opacity:.45}
+footer{margin-top:18px;color:var(--mute);font-size:13px}
+#mini{position:fixed;left:0;right:0;bottom:0;display:flex;align-items:center;gap:8px;
+  padding:12px 12px calc(12px + env(safe-area-inset-bottom,0px)) 18px;background:var(--ink);color:var(--bg)}
+#mini[hidden]{display:none}
+#mini .t{flex:1;min-width:0}
+#mini .t b{display:block;font:600 13px system-ui,sans-serif;opacity:.75}
+#mini .t span{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font:600 16px Georgia,serif}
+#mini button{width:44px;height:44px;border:0;border-radius:50%;background:transparent;color:inherit;cursor:pointer;display:grid;place-items:center}
+#mini button svg{width:26px;height:26px;fill:currentColor}
+#mini #pp{background:var(--bg);color:var(--ink)}
+@media (prefers-reduced-motion:no-preference){.row::before{transition:width .25s linear}}
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <div>
+      <h1>Morning news</h1>
+      <p class="date" id="date"></p>
+    </div>
+    <button class="linkbtn" id="refresh">Refresh</button>
+  </header>
+
+  <button class="play" id="play" disabled>
+    <span><svg viewBox="0 0 24 24"><path d="M7 4v16l13-8z"/></svg>Play the news</span>
+    <span id="count"></span>
+  </button>
+
+  <ul id="list" aria-label="News sources"></ul>
+  <footer><span id="updated"></span> <button class="linkbtn" id="proxybtn"></button></footer>
+</main>
+
+<div id="mini" hidden>
+  <div class="t"><b id="mSrc"></b><span id="mHl"></span></div>
+  <button id="prev" aria-label="Previous bulletin"><svg viewBox="0 0 24 24"><path d="M6 5h2v14H6zM20 5v14L9 12z"/></svg></button>
+  <button id="pp" aria-label="Play or pause"><svg id="ppIcon" viewBox="0 0 24 24"><path d="M6 5h4v14H6zM14 5h4v14h-4z"/></svg></button>
+  <button id="next" aria-label="Next bulletin"><svg viewBox="0 0 24 24"><path d="M16 5h2v14h-2zM4 5v14l11-7z"/></svg></button>
+</div>
+
+<audio id="audio" preload="none"></audio>
+
+<script>
+/* ---------- Config ----------
+   Order matches your Google Assistant queue. Add or remove sources here.
+   type "omny": Omny Studio program (org + prog IDs). type "rss": podcast RSS feed.
+   proxy:true means the feed blocks browsers (no CORS) and must go through your proxy (see worker.js). */
+const NC="2fb3740d-3436-44af-8cc0-a91900716aa5";   // News Corp Australia / NOVA on Omny
+const TP="88b564ea-a9a6-4751-910a-a5d800019396";   // Tapt (Nine Radio) on Omny
+const SC="566281f8-200e-4c9f-8378-a4870055423b";   // SCA / LiSTNR on Omny
+const SOURCES=[
+  {id:"nova",   name:"NOVA News",             type:"omny", org:NC, prog:"d844a75b-4c7e-4638-b208-ac0d0185560e"},
+  {id:"fox",    name:"Fox FM Melbourne News", type:"omny", org:SC, prog:"a7ee56bc-7e19-4bab-9026-ac0d00124f59"},
+  {id:"abc",    name:"ABC News Briefing",     type:"rss",  url:"https://www.abc.net.au/feeds/101858056/podcast.xml", proxy:true},
+  {id:"news24", name:"News24",                type:"omny", org:NC, prog:"cfb18248-9dff-4d09-bd49-ac2a005249de"},
+  {id:"sbs",    name:"SBS News",              type:"rss",  url:"https://sbs-ondemand.streamguys1.com/sbs-news-latest/"},
+  {id:"nine",   name:"Nine News Bulletin",    type:"omny", org:TP, prog:"d54017ee-1f2d-4e78-93e9-b2e300786105"},
+];
+const DEFAULT_PROXY=""; // e.g. "https://morning-news-proxy.yourname.workers.dev"
+
+/* ---------- Helpers ---------- */
+const $=s=>document.querySelector(s);
+const audio=$("#audio");
+const store={get:(k,d)=>{try{return JSON.parse(localStorage.getItem(k))??d}catch{return d}},
+             set:(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch{}}};
+let enabled=store.get("news.enabled",{});
+let proxy=store.get("news.proxy",DEFAULT_PROXY);
+const isOn=id=>enabled[id]!==false;
+let items=SOURCES.map(s=>({...s,status:"loading"}));
+let q=[],cur=-1,loadedAt=0;
+
+const tfetch=(u,ms=10000)=>{const c=new AbortController();const t=setTimeout(()=>c.abort(),ms);
+  return fetch(u,{signal:c.signal}).finally(()=>clearTimeout(t))};
+
+function ago(d){
+  const m=Math.max(0,Math.round((Date.now()-d)/60000));
+  if(m<1)return "just now"; if(m<60)return m+" min ago";
+  const h=Math.round(m/60); if(h<48)return h+(h===1?" hour ago":" hours ago");
+  return Math.round(h/24)+" days ago";
+}
+const esc=s=>s.replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+/* ---------- Fetching ---------- */
+async function fromOmny(s){
+  const r=await tfetch(`https://api.omny.fm/orgs/${s.org}/programs/${s.prog}/clips?pageSize=1`);
+  if(!r.ok)throw new Error("HTTP "+r.status);
+  const c=(await r.json()).Clips?.[0];
+  if(!c||!c.AudioUrl)throw new Error("No episodes");
+  return {title:c.Title.trim(),published:new Date(c.PublishedUtc),audio:c.AudioUrl};
+}
+async function fromRss(s){
+  let xml;
+  try{
+    const r=await tfetch(s.url); if(!r.ok)throw new Error("HTTP "+r.status);
+    xml=await r.text();
+  }catch(e){
+    if(!s.proxy)throw e;
+    if(!proxy)throw new Error("needs-proxy");
+    const r=await tfetch(proxy.replace(/\/$/,"")+"/?url="+encodeURIComponent(s.url));
+    if(!r.ok)throw new Error("Proxy HTTP "+r.status);
+    xml=await r.text();
+  }
+  const it=new DOMParser().parseFromString(xml,"text/xml").querySelector("item");
+  const enc=it?.querySelector("enclosure");
+  if(!enc)throw new Error("No episodes");
+  return {title:it.querySelector("title").textContent.split(" | ")[0].trim(),
+          published:new Date(it.querySelector("pubDate").textContent),
+          audio:enc.getAttribute("url")};
+}
+async function load(){
+  items=SOURCES.map(s=>({...s,status:"loading"})); render();
+  const res=await Promise.allSettled(SOURCES.map(s=>s.type==="omny"?fromOmny(s):fromRss(s)));
+  items=SOURCES.map((s,i)=>res[i].status==="fulfilled"
+    ?{...s,status:"ok",...res[i].value}
+    :{...s,status:res[i].reason.message==="needs-proxy"?"proxy":"error"});
+  loadedAt=Date.now(); render();
+}
+
+/* ---------- Rendering ---------- */
+function render(){
+  $("#date").textContent=new Date().toLocaleDateString("en-AU",{weekday:"long",day:"numeric",month:"long"});
+  $("#list").innerHTML=items.map(it=>{
+    let body,age="";
+    if(it.status==="ok"){
+      body=`<span class="src">${esc(it.name)}</span><span class="hl">${esc(it.title)}</span>`;
+      const stale=Date.now()-it.published>24*3600e3;
+      age=`<span class="age${stale?" stale":""}">${ago(it.published)}</span>`;
+    }else if(it.status==="loading"){
+      body=`<span class="src">${esc(it.name)}</span><span class="hl msg">Loading</span>`;
+    }else if(it.status==="proxy"){
+      body=`<span class="src">${esc(it.name)}</span><span class="hl msg">This feed needs your proxy. Tap to add it.</span>`;
+    }else{
+      body=`<span class="src">${esc(it.name)}</span><span class="hl msg err">Could not load. Try Refresh.</span>`;
+    }
+    return `<li class="row${isOn(it.id)?"":" off"}" data-id="${it.id}">
+      <input type="checkbox" aria-label="Include ${esc(it.name)}" ${isOn(it.id)?"checked":""}>
+      <button class="pick">${body}</button>${age}</li>`;
+  }).join("");
+  const n=items.filter(i=>i.audio&&isOn(i.id)).length;
+  $("#play").disabled=n===0;
+  $("#count").textContent=n?`${n} bulletin${n===1?"":"s"}`:"";
+  $("#updated").textContent=loadedAt?"Updated "+new Date(loadedAt).toLocaleTimeString("en-AU",{hour:"numeric",minute:"2-digit"}):"";
+  $("#proxybtn").textContent=proxy?"Change ABC proxy":"Set ABC proxy";
+  markNow();
+}
+function markNow(){
+  document.querySelectorAll(".row").forEach(r=>{
+    const on=cur>=0&&q[cur]&&q[cur].id===r.dataset.id;
+    r.classList.toggle("now",on); if(!on)r.style.removeProperty("--p");
+  });
+}
+
+/* ---------- Playback ---------- */
+function start(fromId){
+  q=items.filter(i=>i.audio&&isOn(i.id));
+  if(!q.length)return;
+  const n=fromId?q.findIndex(i=>i.id===fromId):0;
+  playAt(n<0?0:n);
+}
+function playAt(n){
+  if(n<0)n=0;
+  if(n>=q.length){finish();return}
+  cur=n;const it=q[n];
+  audio.src=it.audio;
+  audio.play().catch(()=>playAt(n+1));
+  $("#mini").hidden=false;
+  $("#mSrc").textContent=it.name;$("#mHl").textContent=it.title;
+  markNow();
+  if("mediaSession"in navigator){
+    navigator.mediaSession.metadata=new MediaMetadata({title:it.title,artist:it.name,album:"Morning news"});
+  }
+}
+function finish(){
+  cur=-1;markNow();audio.removeAttribute("src");
+  $("#mSrc").textContent="Morning news";$("#mHl").textContent="That is all the news.";
+  setIcon(false);
+}
+function setIcon(playing){
+  $("#ppIcon").innerHTML=playing?'<path d="M6 5h4v14H6zM14 5h4v14h-4z"/>':'<path d="M7 4v16l13-8z"/>';
+}
+audio.addEventListener("play",()=>setIcon(true));
+audio.addEventListener("pause",()=>setIcon(false));
+audio.addEventListener("ended",()=>playAt(cur+1));
+audio.addEventListener("error",()=>{if(cur>=0)playAt(cur+1)});
+audio.addEventListener("timeupdate",()=>{
+  if(cur<0||!audio.duration)return;
+  const r=document.querySelector(`.row[data-id="${q[cur].id}"]`);
+  if(r)r.style.setProperty("--p",(audio.currentTime/audio.duration*100)+"%");
+});
+if("mediaSession"in navigator){
+  navigator.mediaSession.setActionHandler("play",()=>audio.play());
+  navigator.mediaSession.setActionHandler("pause",()=>audio.pause());
+  navigator.mediaSession.setActionHandler("nexttrack",()=>playAt(cur+1));
+  navigator.mediaSession.setActionHandler("previoustrack",()=>playAt(cur-1));
+}
+
+/* ---------- Events ---------- */
+$("#play").onclick=async()=>{
+  if(Date.now()-loadedAt>3*60e3){await load()}   // always play the freshest bulletins
+  start();
+};
+$("#refresh").onclick=load;
+$("#pp").onclick=()=>{if(cur<0){start()}else if(audio.paused){audio.play()}else{audio.pause()}};
+$("#next").onclick=()=>playAt(cur+1);
+$("#prev").onclick=()=>{if(audio.currentTime>4)audio.currentTime=0;else playAt(cur-1)};
+$("#list").addEventListener("change",e=>{
+  if(e.target.type!=="checkbox")return;
+  enabled[e.target.closest(".row").dataset.id]=e.target.checked;
+  store.set("news.enabled",enabled);render();
+});
+$("#list").addEventListener("click",e=>{
+  const b=e.target.closest(".pick");if(!b)return;
+  const it=items.find(i=>i.id===b.closest(".row").dataset.id);
+  if(it.status==="proxy")return setProxy();
+  if(it.status==="ok")start(it.id);
+});
+function setProxy(){
+  const v=prompt("Proxy URL for ABC (your Cloudflare Worker address). Leave blank to clear.",proxy||"");
+  if(v===null)return;
+  proxy=v.trim();store.set("news.proxy",proxy);load();
+}
+$("#proxybtn").onclick=setProxy;
+document.addEventListener("visibilitychange",()=>{
+  if(!document.hidden&&Date.now()-loadedAt>10*60e3&&cur<0)load();
+});
+
+load();
+</script>
+</body>
+</html>

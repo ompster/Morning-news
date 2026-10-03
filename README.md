@@ -104,3 +104,6 @@ public/app.js  -- /api/news --> src/worker.js --fetchAll()-->  Omny API, ABC RSS
 
 ## Contributing
 Issues and pull requests are welcome, especially new sources for other cities, or feeds that have broken.
+
+## License
+[MIT](LICENSE). Audio and feed content belong to their respective publishers; this app only links to their public podcast feeds.
